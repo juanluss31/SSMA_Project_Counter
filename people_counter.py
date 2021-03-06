@@ -36,6 +36,9 @@ CLASSES = ["background", "aeroplane", "bicycle", "bird", "boat",
 print("[INFO] loading model...")
 net = cv2.dnn.readNetFromCaffe(args["prototxt"], args["model"])
 
+newframetime=0
+prevframetime=0
+
 # Si no se especifica una ruta de input video, utilizaremos la webcam
 if not args.get("input", False):
 	print("[INFO] starting video stream...")
@@ -224,6 +227,16 @@ while True:
 	# Comprobamos si debemos crear un video
 	if writer is not None:
 		writer.write(frame)
+
+	# CALCULO DE FPS
+	newframetime = time.time()
+	framespersecond = 1/(newframetime-prevframetime)
+	prevframetime = newframetime
+
+	framespersecond = int(framespersecond)
+	framespersecond = str(framespersecond)
+
+	cv2.putText(frame, framespersecond, (7, 70), cv2.FONT_HERSHEY_SIMPLEX, 1, (100, 255, 0), 3, cv2.LINE_AA)
 
 	# Mostramos el output frame
 	cv2.imshow("Frame", frame)

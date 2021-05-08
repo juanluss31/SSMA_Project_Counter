@@ -4,6 +4,7 @@ from centroidTrackable.trackableobject import TrackableObject
 from imutils.video import VideoStream
 from imutils.video import FPS
 from dotenv import load_dotenv
+import requests
 import datetime
 import os
 import numpy as np
@@ -65,6 +66,7 @@ trackableObjects = {}
 totalFrames = 0
 totalDown = 0
 totalUp = 0
+header = {}
 
 startTime = datetime.datetime.now()
 
@@ -73,7 +75,8 @@ mode = 0
 if args["test"] == 0:
     load_dotenv()
     print("[INFO] estas en modo conexion")
-    print("[INFO] el secreto es: {}".format(os.getenv('APIKEY')))
+    response = requests.post('http://192.168.1.57:3000/counter/login', data={'username': os.getenv('USERNAME'), 'password': os.getenv('PASS')})
+    headers = {'Authorization': 'Bearer {}'.format(response.json()['accessToken']), os.getenv('APIHEADER'): os.getenv('APIKEY')}
 else:
     mode = 1
     print("[INFO] estas en modo test")
@@ -261,6 +264,11 @@ while True:
     
     if mode == 0 and int((datetime.datetime.now() - startTime).total_seconds()) > 5:
         startTime = datetime.datetime.now()
+        print("[INFO] sending data to backend")
+        # Llamamos al backend para enviarle nuevos datos
+        x = requests.post('http://192.168.1.57:3000/counter/update-values', data={'entering': totalUp, 'exiting': totalDown}, headers=headers)
+        print(x)
+        
 
 # Terminamos el timer y mostramos la informacion de FPS
 fps.stop()

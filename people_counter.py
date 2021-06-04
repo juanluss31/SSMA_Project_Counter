@@ -76,7 +76,7 @@ if args["test"] == 0:
     load_dotenv()
     print("[INFO] estas en modo conexion")
     response = requests.post('http://192.168.1.57:3000/counter/login', data={'username': os.getenv('USERNAME'), 'password': os.getenv('PASS')})
-    headers = {'Authorization': 'Bearer {}'.format(response.json()['accessToken']), os.getenv('APIHEADER'): os.getenv('APIKEY')}
+    headers = {'Authorization': 'Bearer {}'.format(response.json()['accessToken'])}
 else:
     mode = 1
     print("[INFO] estas en modo test")

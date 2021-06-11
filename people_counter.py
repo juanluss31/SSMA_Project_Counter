@@ -75,9 +75,9 @@ mode = 0
 if args["test"] == 0:
     load_dotenv()
     print("[INFO] estas en modo conexion")
-    response = requests.post('http://192.168.1.57:3000/counter/login', data={'username': os.getenv('USERNAME'), 'password': os.getenv('PASS')})
+    response = requests.post(os.getenv('URLLOGIN'), data={'username': os.getenv('USERNAME'), 'password': os.getenv('PASS')})
     print(response.text)
-    headers = {'Authorization': 'Bearer {}'.format(response.json()['accessToken']), os.getenv('APIHEADER'): os.getenv('APIKEY')}
+    headers = {'Authorization': 'Bearer {}'.format(response.json()['accessToken'])}
 else:
     mode = 1
     print("[INFO] estas en modo test")
@@ -267,9 +267,11 @@ while True:
         startTime = datetime.datetime.now()
         print("[INFO] sending data to backend")
         # Llamamos al backend para enviarle nuevos datos
-        x = requests.post('http://192.168.1.57:3000/counter/update-values', data={'entering': totalUp, 'exiting': totalDown}, headers=headers)
+        x = requests.post(os.getenv('URLUPDATE'), data={'entering': totalUp, 'exiting': totalDown}, headers=headers)
         print(x)
         
+x = requests.post(os.getenv('URLUPDATE'), data={'entering': totalUp, 'exiting': totalDown}, headers=headers)
+print(x)
 
 # Terminamos el timer y mostramos la informacion de FPS
 fps.stop()

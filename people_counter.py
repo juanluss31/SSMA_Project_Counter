@@ -40,7 +40,7 @@ prevframetime=0
 # Si no se especifica una ruta de input video, utilizaremos la webcam
 if not args.get("input", False):
     print("[INFO] starting video stream...")
-    vs = VideoStream(src=0).start()
+    vs = VideoStream(src=0, resolution=(320,240)).start()
     time.sleep(2.0)
 # Si se especiifica, entonces lo cargamos
 else:
@@ -76,6 +76,7 @@ if args["test"] == 0:
     load_dotenv()
     print("[INFO] estas en modo conexion")
     response = requests.post('http://192.168.1.57:3000/counter/login', data={'username': os.getenv('USERNAME'), 'password': os.getenv('PASS')})
+    print(response.text)
     headers = {'Authorization': 'Bearer {}'.format(response.json()['accessToken']), os.getenv('APIHEADER'): os.getenv('APIKEY')}
 else:
     mode = 1
@@ -96,7 +97,7 @@ while True:
 
     # Hacemos un resize al frame para tener un ancho máximo de 500px (menos datos, más
     # rápido se procesa), luego convertimos el frame de BGR a RGB para dlib
-    frame = imutils.resize(frame, width=500)
+    frame = imutils.resize(frame, width=240)
     rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
     # Si las dimensiones del frame estan vacias, las asignamos

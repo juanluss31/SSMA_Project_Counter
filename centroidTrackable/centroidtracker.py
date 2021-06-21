@@ -17,10 +17,6 @@ class CentroidTracker:
         # desaparecido antes de ser desregistrado como objeto.
         self.maxDisappeared = maxDisappeared
 
-        #TODO traducir
-        # store the maximum distance between centroids to associate
-        # an object -- if the distance is larger than this maximum
-        # distance we'll start to mark the object as "disappeared"
         self.maxDistance = maxDistance
 
     def register(self, centroid):
@@ -91,7 +87,6 @@ class CentroidTracker:
             # Después, buscamos los valores mínimos en cada columna, y ordenándolos
             # utilizando los index de las filas calculados anteriormente
             # axis = 0 es columnas, axis = 1 es filas.
-            # TODO Probar esto
 
             # Después, el argmin hace lo mismo que el min, devuelve las
             # columnas con los valores mínimos de cada fila, en el caso de tener 2 filas,
@@ -102,20 +97,13 @@ class CentroidTracker:
             # cols = [2, 1].
             cols = D.argmin(axis=1)[rows]
 
-            # in order to determine if we need to update, register,
-            # or deregister an object we need to keep track of which
-            # of the rows and column indexes we have already examined
-
             # Para determinar si tenemos que actualizar, registrar o desregistrar un objeto,
             # debemos trackear cual de los indexes de las filas y columnas ya hemos examinado.
             usedRows = set()
             usedCols = set()
-            # loop over the combination of the (row, column) index
-            # tuples
 
             # Iteramos sobre cada tupla de combinación de index (fila, columna)
             # Zip devuelve un iterador de tuplas
-            # TODO Probar esta mierda
 
             # Después, el zip lo que hace es combinar las filas con las columnas, si por ejemplo las
             # rows = [1, 0], y las cols = [2, 1], entonces el zip(rows, cols) = [(1, 2), (0, 1)]
@@ -144,17 +132,9 @@ class CentroidTracker:
                 usedRows.add(row)
                 usedCols.add(col)
 
-            # compute both the row and column index we have NOT yet
-            # examined
-
             # Calculamos el indice de la fila y columna que todavia no hemos examinado
             unusedRows = set(range(0, D.shape[0])).difference(usedRows)
             unusedCols = set(range(0, D.shape[1])).difference(usedCols)
-
-            # in the event that the number of object centroids is
-            # equal or greater than the number of input centroids
-            # we need to check and see if some of these objects have
-            # potentially disappeared
 
             # En el caso de que el numero de centroides de objeto es mayor o igual
             # al numero de nuevos centroides, debemos comprobar si algunos objetos

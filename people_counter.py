@@ -13,6 +13,7 @@ import imutils
 import time
 import dlib
 import cv2
+import ffmpeg
 
 # Creamos los argumentos
 ap = argparse.ArgumentParser()
@@ -64,8 +65,8 @@ trackableObjects = {}
 # Inicializamos el numero total de frames procesado hasta ahora, junto con el
 # numero total de objetos que se han movido arriba o abajo
 totalFrames = 0
-totalDown = 0
-totalUp = 0
+totalRight = 0
+totalLeft = 0
 header = {}
 
 startTime = datetime.datetime.now()
@@ -75,9 +76,9 @@ mode = 0
 if args["test"] == 0:
     load_dotenv()
     print("[INFO] estas en modo conexion")
-    response = requests.post(os.getenv('URLLOGIN'), data={'username': os.getenv('USERNAME'), 'password': os.getenv('PASS')})
-    print(response.text)
-    headers = {'Authorization': 'Bearer {}'.format(response.json()['accessToken'])}
+    # response = requests.post(os.getenv('URLLOGIN'), data={'username': os.getenv('USERNAME'), 'password': os.getenv('PASS')})
+    # print(response.text)
+    headers = {'Authorization': 'Basic YWRtaW46YWRtaW4='}
 else:
     mode = 1
     print("[INFO] estas en modo test")
@@ -85,8 +86,20 @@ else:
 # Ejecutamos el estimador de frames por segundo
 fps = FPS().start()
 
+# Define the RTMP URL
+rtmp_url = "rtmp://localhost/live/counter"
+
+# Initialize the FFmpeg stream
+process = None
+
+# Define the desired FPS
+desired_fps = 30
+frame_time = 1 / desired_fps  # Time per frame in seconds
+
 # Bucle principal
 while True:
+    start_time = time.time()  # Record the start time of the frame
+
     # Obtenemos el siguiente frame y lo procesamos (tanto si usamos camaro como video)
     frame = vs.read()
     frame = frame[1] if args.get("input", False) else frame
@@ -103,6 +116,21 @@ while True:
     # Si las dimensiones del frame estan vacias, las asignamos
     if W is None or H is None:
         (H, W) = frame.shape[:2]
+        # Initialize the FFmpeg stream once dimensions are known
+        process = (
+            ffmpeg
+            .input('pipe:', format='rawvideo', pix_fmt='bgr24', s=f"{W}x{H}", framerate=30)
+            .output(
+                rtmp_url,
+                vcodec='libx264',
+                preset='ultrafast',  # Use ultrafast preset to reduce latency
+                tune='zerolatency',
+                pix_fmt='yuv420p',  # Ensure compatibility with RTMP
+                g=30,  # Set GOP size to match the frame rate
+                format='flv'
+            )
+            .run_async(pipe_stdin=True)
+        )
 
     # Si estamos creando un video, inicializamos el video writer
     if args["output"] is not None and writer is None:
@@ -177,9 +205,10 @@ while True:
             # Añadimos las coordenadas de la bounding box a la lista de rectangulos
             rects.append((startX, startY, endX, endY))
 
-    # Dibujamos una linea horizontal en el centro del frame. Una vez un objeto cruce esta linea,
-    # se determinara si se esta moviendo hacia arriba o hacia abajo
-    cv2.line(frame, (0, H // 2), (W, H // 2), (0, 255, 255), 2)
+    # Dibujamos una linea vertical en el centro del frame. Una vez un objeto cruce esta linea,
+    # se determinara si se esta moviendo hacia la derecha o hacia la izquierda
+    # cv2.line(frame, (0, H // 2), (W, H // 2), (0, 255, 255), 2)
+    cv2.line(frame, (W // 2, 0), (W // 2, H), (255, 0, 255), 2)
 
     # Usamos el centroid tracker para asociar el antiguo centroide del objeto con los nuevos computados
     objects = ct.update(rects)
@@ -195,24 +224,18 @@ while True:
 
         # Si nom ya existe un objeto trackeable asi que podemos utilizarlos para calcular la direccion
         else:
-            # La diferencia entre la coordenada y del centroide actual, y la media de los centroides anteriores
-            # nos inicará en que dirección se está moviendo el objeto (negativo arriba, positivo abajo)
-            y = [c[1] for c in to.centroids]
-            direction = centroid[1] - np.mean(y)
-            to.centroids.append(centroid)
+            # La diferencia entre la coordenada x del centroide actual, y la media de los centroides anteriores
+            # nos indicará en qué dirección se está moviendo el objeto (positivo derecha, negativo izquierda)
+            x = [c[0] for c in to.centroids]
+            directionX = centroid[0] - np.mean(x)
 
-            # Comprobar si el objeto a sido contado o no
+            # Comprobar si el objeto ha sido contado o no
             if not to.counted:
-                # Si la direccion es negativa (arriba) y el centroide está encima de la linea central,
-                # contamos el objeto
-                if direction < 0 and centroid[1] < H // 2:
-                    totalUp += 1
+                if directionX > 0 and centroid[0] > W // 2:  # Moviéndose hacia la derecha
+                    totalRight += 1
                     to.counted = True
-
-                # Si la direccion es positiva (abajo) y el centroide está debajo de la linea central,
-                # contamos el objeto
-                elif direction > 0 and centroid[1] > H // 2:
-                    totalDown += 1
+                elif directionX < 0 and centroid[0] < W // 2:  # Moviéndose hacia la izquierda
+                    totalLeft += 1
                     to.counted = True
 
         # Almacenamos los objectos trackeables en el diccionario
@@ -224,10 +247,10 @@ while True:
             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
         cv2.circle(frame, (centroid[0], centroid[1]), 4, (0, 255, 0), -1)
 
-    # Contruimos una tupla de informacion que mostraremos en el frame
+    # Construimos una tupla de informacion que mostraremos en el frame
     info = [
-        ("Up", totalUp),
-        ("Down", totalDown),
+        ("Right", totalRight),
+        ("Left", totalLeft),
         ("Status", status),
     ]
 
@@ -255,23 +278,40 @@ while True:
     cv2.imshow("Frame", frame)
     key = cv2.waitKey(1) & 0xFF
 
+    # Write the frame to FFmpeg's stdin for streaming
+    if process.stdin:
+        process.stdin.write(frame.tobytes())
+
     # Si se presiona la tecla q acabamos
     if key == ord("q"):
         break
 
-    # Incrementamos el nuero total de frames procesados hasta ahora y actualizamos el contador de fps
+    # Incrementamos el numero total de frames procesados hasta ahora y actualizamos el contador de fps
     totalFrames += 1
     fps.update()
-    
+
+    # Enforce a stable FPS
+    elapsed_time = time.time() - start_time
+    delay = max(0, frame_time - elapsed_time)  # Calculate the remaining time for the frame
+    time.sleep(delay)  # Introduce a delay to maintain the desired FPS
+
     if mode == 0 and int((datetime.datetime.now() - startTime).total_seconds()) > 5:
         startTime = datetime.datetime.now()
-        print("[INFO] sending data to backend")
-        # Llamamos al backend para enviarle nuevos datos
-        x = requests.post(os.getenv('URLUPDATE'), data={'entering': totalUp, 'exiting': totalDown}, headers=headers)
-        print(x)
-        
-x = requests.post(os.getenv('URLUPDATE'), data={'entering': totalUp, 'exiting': totalDown}, headers=headers)
-print(x)
+        # print("[INFO] sending data to backend")
+        # Log the payload being sent
+        payload = {'right': totalRight, 'left': totalLeft}
+        # print(f"[DEBUG] Payload: {payload}")
+        x = requests.post(os.getenv('URLUPDATE'), json=payload, headers=headers)
+        # print(f"[DEBUG] Server Response: {x.status_code}, {x.text}")
+
+if mode == 0:
+    x = requests.post(os.getenv('URLUPDATE'), json={'right': totalRight, 'left': totalLeft}, headers=headers)
+    print(x)
+
+# Clean up the FFmpeg process
+if process.stdin:
+    process.stdin.close()
+process.wait()
 
 # Terminamos el timer y mostramos la informacion de FPS
 fps.stop()
@@ -279,9 +319,9 @@ print("[INFO] elapsed time: {:.2f}".format(fps.elapsed()))
 print("[INFO] approx. FPS: {:.2f}".format(fps.fps()))
 
 # Mostramos los contadores en el terminal
-print("[INFO] personas hacia arriba: " + str(totalUp))
-print("[INFO] personas hacia abajo: " + str(totalDown))
-print("[INFO] personas en total: " + str(totalUp + totalDown))
+print("[INFO] personas hacia la derecha: " + str(totalRight))
+print("[INFO] personas hacia la izquierda: " + str(totalLeft))
+print("[INFO] personas en total: " + str(totalRight - totalLeft))
 
 # Comprobamos si necesitamos terminar con el video
 if writer is not None:

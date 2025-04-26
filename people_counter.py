@@ -55,7 +55,7 @@ writer = None
 W = None
 H = None
 
-# Instaciamos nuestro centroid tracker, e inicializamos unalista para almacenar
+# Instaciamos nuestro centroid tracker, e inicializamos una lista para almacenar
 # cada uno de nuestros trackers de correlación de dlib, seguidos de un diccionario
 # para mapear cada objectId unica a un TrackableObject
 ct = CentroidTracker(maxDisappeared=40, maxDistance=50)
@@ -63,7 +63,7 @@ trackers = []
 trackableObjects = {}
 
 # Inicializamos el numero total de frames procesado hasta ahora, junto con el
-# numero total de objetos que se han movido arriba o abajo
+# numero total de objetos que se han movido la derecha o la izquierda
 totalFrames = 0
 totalRight = 0
 totalLeft = 0
@@ -144,7 +144,7 @@ while True:
     status = "Waiting"
     rects = []
 
-    # Comprobar si deberíamos utilizar un método de detección de objetos más costodo
+    # Comprobar si deberíamos utilizar un método de detección de objetos más costoso
     # computacionalmente para ayudar a nuestro tracker
     if totalFrames % args["skip_frames"] == 0:
         # Cambiar el estado e inicializar nuestro nuevo conjunto de trackers

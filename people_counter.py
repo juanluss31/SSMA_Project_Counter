@@ -31,39 +31,39 @@ args = vars(ap.parse_args())
 # detect
 CLASSES = ["background", "aeroplane", "bicycle", "bird", "boat", "bottle", "bus", "car", "cat", "chair", "cow", "diningtable", "dog", "horse", "motorbike", "person", "pottedplant", "sheep", "sofa", "train", "tvmonitor"]
 
-# Cargamos nuestro modelo serializado
+# Cargamos el modelo preentrenado de MobileNet SSD utilizando los archivos prototxt y modelo proporcionados
 print("[INFO] loading model...")
 net = cv2.dnn.readNetFromCaffe(args["prototxt"], args["model"])
 
-newframetime=0
-prevframetime=0
+newframetime = 0
+prevframetime = 0
 
-# Si no se especifica una ruta de input video, utilizaremos la webcam
+# Si no se especifica una ruta de video de entrada, utilizamos la webcam como fuente de video
 if not args.get("input", False):
     print("[INFO] starting video stream...")
-    vs = VideoStream(src=0, resolution=(320,240)).start()
+    vs = VideoStream(src=0, resolution=(320, 240)).start()
     time.sleep(2.0)
-# Si se especiifica, entonces lo cargamos
+# Si se especifica una ruta de video de entrada, cargamos el archivo de video
 else:
     print("[INFO] opening video file...")
     vs = cv2.VideoCapture(args["input"])
 
-# Inicializamos el creador de video
+# Inicializamos el escritor de video (si es necesario)
 writer = None
 
-# Inicializamos las dimensiones de frame
+# Inicializamos las dimensiones del frame (ancho y alto)
 W = None
 H = None
 
-# Instaciamos nuestro centroid tracker, e inicializamos unalista para almacenar
-# cada uno de nuestros trackers de correlación de dlib, seguidos de un diccionario
-# para mapear cada objectId unica a un TrackableObject
+# Instanciamos el rastreador de centroides (CentroidTracker) y una lista para almacenar
+# los trackers de correlación de dlib, junto con un diccionario para mapear cada ID de objeto único
+# a un objeto TrackableObject
 ct = CentroidTracker(maxDisappeared=40, maxDistance=50)
 trackers = []
 trackableObjects = {}
 
-# Inicializamos el numero total de frames procesado hasta ahora, junto con el
-# numero total de objetos que se han movido arriba o abajo
+# Inicializamos el número total de frames procesados hasta ahora, junto con el
+# número total de objetos que se han movido hacia la derecha o hacia la izquierda
 totalFrames = 0
 totalRight = 0
 totalLeft = 0
@@ -85,9 +85,6 @@ else:
 
 # Ejecutamos el estimador de frames por segundo
 fps = FPS().start()
-
-# Define the RTMP URL
-rtmp_url = "rtmp://localhost/live/counter"
 
 # Initialize the FFmpeg stream
 process = None
@@ -121,7 +118,7 @@ while True:
             ffmpeg
             .input('pipe:', format='rawvideo', pix_fmt='bgr24', s=f"{W}x{H}", framerate=30)
             .output(
-                rtmp_url,
+                os.getenv('RTMPURL'),
                 vcodec='libx264',
                 preset='ultrafast',  # Use ultrafast preset to reduce latency
                 tune='zerolatency',
